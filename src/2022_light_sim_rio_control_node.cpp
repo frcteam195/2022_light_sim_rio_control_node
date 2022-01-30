@@ -150,9 +150,6 @@ void linux_joystick_subscriber(const sensor_msgs::Joy &msg)
 
     joystick_status.joysticks.push_back(joystick);
     joystick_publisher.publish(joystick_status);
-
-    publish_robot_status();
-    publish_motor_status();
 }
 
 int main(int argc, char **argv)
@@ -169,6 +166,8 @@ int main(int argc, char **argv)
     while( ros::ok() )
     {
         ros::spinOnce();
+        publish_robot_status();
+        publish_motor_status();
         rate.sleep();
     }
 
