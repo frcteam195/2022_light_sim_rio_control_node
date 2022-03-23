@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-set(PROJECT_NAME "2022_light_sim_rio_control_node")
+set(PROJECT_NAME "light_sim_2022_rio_control_node")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(${PROJECT_NAME})
