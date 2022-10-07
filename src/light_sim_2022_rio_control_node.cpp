@@ -10,13 +10,22 @@
 #include "rio_control_node/Robot_Status.h"
 #include "rio_control_node/Joystick_Status.h"
 
+#include <signal.h>
 #include <thread>
 #include <string>
 #include <mutex>
+#include <atomic>
 
 #define RATE (100)
 
 ros::NodeHandle* node;
+std::atomic<bool> sigintCalled;
+void sigint_handler(int sig)
+{
+	(void)sig;
+	sigintCalled = true;
+	ros::shutdown();
+}
 
 // void gazebo_link_states_callback(const gazebo_msgs::LinkStates &msg)
 // {
@@ -161,6 +170,10 @@ void linux_joystick_subscriber(const sensor_msgs::Joy &msg)
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "light_sim_rio_control_node");
+
+	sigintCalled = false;
+	signal(SIGINT, sigint_handler);
+
 	ros::NodeHandle n;
 	node = &n;
     ros::Rate rate(RATE);
