@@ -67,53 +67,59 @@ void publish_motor_status()
 
 void motor_control_callback(const rio_control_node::Motor_Control &msg)
 {
-    double right_side_rpm;
-    double left_side_rpm;
+    // double right_side_rpm;
+    // double left_side_rpm;
 
-    int left_master_id, right_master_id;
+    // int left_master_id, right_master_id;
     
-    double drive_kV;
+    // double drive_kV;
     
-    bool data_verified = true;
+    // bool data_verified = true;
 
-    data_verified &= node->getParam("/light_sim_rio_control_node/left_master_id", left_master_id);
-    data_verified &= node->getParam("/light_sim_rio_control_node/right_master_id", right_master_id);
-    data_verified &= node->getParam("/light_sim_rio_control_node/drive_Kv", drive_kV);
+    // data_verified &= node->getParam("/light_sim_rio_control_node/left_master_id", left_master_id);
+    // data_verified &= node->getParam("/light_sim_rio_control_node/right_master_id", right_master_id);
+    // data_verified &= node->getParam("/light_sim_rio_control_node/drive_Kv", drive_kV);
 
-    if (!data_verified)
-    {
-        ROS_ERROR("Couldn't verify args!");
-        return;
-    }
+    // if (!data_verified)
+    // {
+    //     ROS_ERROR("Couldn't verify args!");
+    //     return;
+    // }
 
     for( std::vector<rio_control_node::Motor>::const_iterator i = msg.motors.begin();
          i != msg.motors.end();
          i++ )
     {
-        if ((*i).id == left_master_id)
-        {
-            if((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
-            {
-                left_side_rpm = (*i).output_value / drive_kV;
-                rio_control_node::Motor_Info motor_info;
-                motor_info.bus_voltage = 12;
-                motor_info.id = left_master_id;
-                motor_info.sensor_velocity = left_side_rpm;
-                motor_info_map[motor_info.id] = motor_info;
-            }
-        }
-        if((*i).id == right_master_id)
-        {
-            if((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
-            {
-               right_side_rpm = (*i).output_value / drive_kV;
-                rio_control_node::Motor_Info motor_info;
-                motor_info.bus_voltage = 12;
-                motor_info.id = right_master_id;
-                motor_info.sensor_velocity = right_side_rpm;
-                motor_info_map[motor_info.id] = motor_info;
-            }
-        }
+        rio_control_node::Motor_Info motor_info;
+        motor_info.bus_voltage = 12;
+        motor_info.id = (*i).id;
+        motor_info.sensor_velocity = (*i).output_value * 4000;
+        motor_info_map[motor_info.id] = motor_info;
+        
+        // if ((*i).id == left_master_id)
+        // {
+        //     if((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
+        //     {
+        //         left_side_rpm = (*i).output_value / drive_kV;
+        //         rio_control_node::Motor_Info motor_info;
+        //         motor_info.bus_voltage = 12;
+        //         motor_info.id = left_master_id;
+        //         motor_info.sensor_velocity = left_side_rpm;
+        //         motor_info_map[motor_info.id] = motor_info;
+        //     }
+        // }
+        // if((*i).id == right_master_id)
+        // {
+        //     if((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
+        //     {
+        //        right_side_rpm = (*i).output_value / drive_kV;
+        //         rio_control_node::Motor_Info motor_info;
+        //         motor_info.bus_voltage = 12;
+        //         motor_info.id = right_master_id;
+        //         motor_info.sensor_velocity = right_side_rpm;
+        //         motor_info_map[motor_info.id] = motor_info;
+        //     }
+        // }
     }
 
 }
