@@ -99,11 +99,27 @@ void motor_control_callback(const rio_control_node::Motor_Control &msg)
          i != msg.motors.end();
          i++ )
     {
-        rio_control_node::Motor_Info motor_info;
-        motor_info.bus_voltage = 12;
-        motor_info.id = (*i).id;
-        motor_info.sensor_velocity = (*i).output_value * 4000;
-        motor_info_map[motor_info.id] = motor_info;
+        if ((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
+        {
+            rio_control_node::Motor_Info motor_info;
+            motor_info.bus_voltage = 12;
+            motor_info.id = (*i).id;
+            motor_info.sensor_velocity = (*i).output_value * 4000;
+            motor_info_map[motor_info.id] = motor_info;
+        }
+        else if ((*i).control_mode == rio_control_node::Motor::MOTION_MAGIC)
+        {
+            float last_position = 0;
+            if(motor_info_map.find((*i).id) != motor_info_map.end())
+            {
+                last_position = motor_info_map[(*i).id].sensor_position;
+            }
+            rio_control_node::Motor_Info motor_info;
+            motor_info.bus_voltage = 12;
+            motor_info.id = (*i).id;
+            motor_info.sensor_position = ((*i).output_value + (last_position * 5.0)) / 6.0;
+            motor_info_map[motor_info.id] = motor_info;
+        }
         
         // if ((*i).id == left_master_id)
         // {
