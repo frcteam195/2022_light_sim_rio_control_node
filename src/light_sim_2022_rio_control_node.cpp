@@ -40,37 +40,32 @@ static std::vector<float> gear_ratio_to_output_shaft;
 static std::vector<float> motor_ticks_per_revolution;
 static std::vector<float> motor_ticks_velocity_sample_window;
 
-// void gazebo_link_states_callback(const gazebo_msgs::LinkStates &msg)
-// {
-// 	static ros::Publisher motor_status_pub
-//         = node->advertise<rio_control_node::Motor_Status>("MotorStatus", 1);
-
-//     rio_control_node::Motor_Status motor_status;
-
-//     for( size_t i = 0; i < msg.name.size(); i++)
-//     {
-//         std::string link_name = msg.name[i];
-//         // we are watching this link
-//         if( links_to_watch.count( link_name ) )
-//         {
-//             rio_control_node::Motor_Info motor_info;
-//             motor_info.sensor_position = msg.pose[i].position.y;
-//             motor_info.sensor_velocity = msg.twist[i].angular.y;
-//             motor_info.id = links_to_watch[link_name];
-//             motor_status.motors.push_back( motor_info );
-//         }
-//     }
-
-//     motor_status_pub.publish(motor_status);
-// }
-
+static std::map<uint8_t, rio_control_node::Motor_Config> motor_config_map;
+static std::map<uint8_t, rio_control_node::Motor_Info> motor_info_map;
 
 void motor_config_callback(const rio_control_node::Motor_Configuration &msg)
 {
-    (void)msg;
-}
+    for (auto i = msg.motors.begin(); i != msg.motors.end(); i++)
+    {
+        // Get the existing data, if it exists.
+        rio_control_node::Motor_Config motor_config;
+        if (motor_config_map.find((*i).id) != motor_config_map.end())
+        {
+            motor_config = motor_config_map[(*i).id];
+        }
 
-static std::map<uint8_t, rio_control_node::Motor_Info> motor_info_map;
+        // Fill out the latest status information.
+        motor_config.id = (*i).id;
+
+        motor_config.forward_soft_limit_enable = (*i).forward_soft_limit_enable;
+        motor_config.forward_soft_limit = (*i).forward_soft_limit;
+
+        motor_config.reverse_soft_limit_enable = (*i).reverse_soft_limit_enable;
+        motor_config.reverse_soft_limit = (*i).reverse_soft_limit;
+
+        motor_config_map[motor_config.id] = motor_config;
+    }
+}
 
 void publish_motor_status()
 {
@@ -129,35 +124,40 @@ void load_config_params()
 
 void motor_control_callback(const rio_control_node::Motor_Control &msg)
 {
-    // double right_side_rpm;
-    // double left_side_rpm;
-
-    // int left_master_id, right_master_id;
-
-    // double drive_kV;
-
-    // bool data_verified = true;
-
-    // data_verified &= node->getParam("/light_sim_rio_control_node/left_master_id", left_master_id);
-    // data_verified &= node->getParam("/light_sim_rio_control_node/right_master_id", right_master_id);
-    // data_verified &= node->getParam("/light_sim_rio_control_node/drive_Kv", drive_kV);
-
-    // if (!data_verified)
-    // {
-    //     ROS_ERROR("Couldn't verify args!");
-    //     return;
-    // }
-
     for( std::vector<rio_control_node::Motor>::const_iterator i = msg.motors.begin();
          i != msg.motors.end();
          i++ )
     {
         if ((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
         {
+            // Get the existing data, if it exists.
             rio_control_node::Motor_Info motor_info;
+            if (motor_info_map.find((*i).id) != motor_info_map.end())
+            {
+                motor_info = motor_info_map[(*i).id];
+            }
+
+            // Fill out the latest status information.
             motor_info.bus_voltage = 12;
             motor_info.id = (*i).id;
             motor_info.sensor_velocity = (*i).output_value * 6380.0 / gear_ratio_to_output_shaft[(*i).id];
+            motor_info.sensor_position += motor_info.sensor_velocity * 0.01;
+
+            if (motor_config_map.find((*i).id) != motor_config_map.end())
+            {
+                rio_control_node::Motor_Config motor_config = motor_config_map[(*i).id];
+
+                if (motor_config.forward_soft_limit_enable)
+                {
+                    motor_info.sensor_position = fmin(motor_info.sensor_position, motor_config.forward_soft_limit);
+                }
+
+                if (motor_config.reverse_soft_limit_enable)
+                {
+                    motor_info.sensor_position = fmax(motor_info.sensor_position, motor_config.reverse_soft_limit);
+                }
+            }
+
             motor_info_map[motor_info.id] = motor_info;
         }
         else if ((*i).control_mode == rio_control_node::Motor::MOTION_MAGIC)
@@ -173,33 +173,20 @@ void motor_control_callback(const rio_control_node::Motor_Control &msg)
             motor_info.sensor_position = ((*i).output_value + (last_position * 5.0)) / 6.0;
             motor_info_map[motor_info.id] = motor_info;
         }
-
-        // if ((*i).id == left_master_id)
-        // {
-        //     if((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
-        //     {
-        //         left_side_rpm = (*i).output_value / drive_kV;
-        //         rio_control_node::Motor_Info motor_info;
-        //         motor_info.bus_voltage = 12;
-        //         motor_info.id = left_master_id;
-        //         motor_info.sensor_velocity = left_side_rpm;
-        //         motor_info_map[motor_info.id] = motor_info;
-        //     }
-        // }
-        // if((*i).id == right_master_id)
-        // {
-        //     if((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
-        //     {
-        //        right_side_rpm = (*i).output_value / drive_kV;
-        //         rio_control_node::Motor_Info motor_info;
-        //         motor_info.bus_voltage = 12;
-        //         motor_info.id = right_master_id;
-        //         motor_info.sensor_velocity = right_side_rpm;
-        //         motor_info_map[motor_info.id] = motor_info;
-        //     }
-        // }
+        else if ((*i).control_mode == rio_control_node::Motor::POSITION)
+        {
+            float last_position = 0;
+            if(motor_info_map.find((*i).id) != motor_info_map.end())
+            {
+                last_position = motor_info_map[(*i).id].sensor_position;
+            }
+            rio_control_node::Motor_Info motor_info;
+            motor_info.bus_voltage = 12;
+            motor_info.id = (*i).id;
+            motor_info.sensor_position = ((*i).output_value + (last_position * 5.0)) / 6.0;
+            motor_info_map[motor_info.id] = motor_info;
+        }
     }
-
 }
 
 void publish_robot_status()
