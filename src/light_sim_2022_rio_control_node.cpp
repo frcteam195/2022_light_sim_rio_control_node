@@ -191,9 +191,18 @@ void motor_control_callback(const rio_control_node::Motor_Control &msg)
 
 void publish_robot_status()
 {
+    static ros::Time start = ros::Time::now();
     rio_control_node::Robot_Status robot_status;
     robot_status.alliance = rio_control_node::Robot_Status::RED;
-    robot_status.robot_state = rio_control_node::Robot_Status::TELEOP;
+    if ((ros::Time::now() - start).toSec() > 15.0)
+    {
+        robot_status.robot_state = rio_control_node::Robot_Status::AUTONOMOUS;
+    }
+    else
+    {
+        robot_status.robot_state = rio_control_node::Robot_Status::TELEOP;
+    }
+    ROS_INFO("Robot Mode: %i", robot_status.robot_state);
     static ros::Publisher robot_status_publisher = node->advertise<rio_control_node::Robot_Status>("/RobotStatus", 100);
     robot_status_publisher.publish(robot_status);
 }
