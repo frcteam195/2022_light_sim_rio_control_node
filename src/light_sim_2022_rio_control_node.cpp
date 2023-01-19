@@ -202,7 +202,7 @@ void publish_robot_status()
     {
         robot_status.robot_state = rio_control_node::Robot_Status::TELEOP;
     }
-    ROS_INFO("Robot Mode: %i", robot_status.robot_state);
+
     static ros::Publisher robot_status_publisher = node->advertise<rio_control_node::Robot_Status>("/RobotStatus", 100);
     robot_status_publisher.publish(robot_status);
 }
