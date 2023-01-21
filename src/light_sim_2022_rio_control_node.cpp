@@ -4,11 +4,11 @@
 #include "geometry_msgs/Twist.h"
 #include "sensor_msgs/Joy.h"
 
-#include "rio_control_node/Motor_Control.h"
-#include "rio_control_node/Motor_Configuration.h"
-#include "rio_control_node/Motor_Status.h"
-#include "rio_control_node/Robot_Status.h"
-#include "rio_control_node/Joystick_Status.h"
+#include "ck_ros_base_msgs_node/Motor_Control.h"
+#include "ck_ros_base_msgs_node/Motor_Configuration.h"
+#include "ck_ros_base_msgs_node/Motor_Status.h"
+#include "ck_ros_base_msgs_node/Robot_Status.h"
+#include "ck_ros_base_msgs_node/Joystick_Status.h"
 
 #include <signal.h>
 #include <thread>
@@ -40,15 +40,15 @@ static std::vector<float> gear_ratio_to_output_shaft;
 static std::vector<float> motor_ticks_per_revolution;
 static std::vector<float> motor_ticks_velocity_sample_window;
 
-static std::map<uint8_t, rio_control_node::Motor_Config> motor_config_map;
-static std::map<uint8_t, rio_control_node::Motor_Info> motor_info_map;
+static std::map<uint8_t, ck_ros_base_msgs_node::Motor_Config> motor_config_map;
+static std::map<uint8_t, ck_ros_base_msgs_node::Motor_Info> motor_info_map;
 
-void motor_config_callback(const rio_control_node::Motor_Configuration &msg)
+void motor_config_callback(const ck_ros_base_msgs_node::Motor_Configuration &msg)
 {
     for (auto i = msg.motors.begin(); i != msg.motors.end(); i++)
     {
         // Get the existing data, if it exists.
-        rio_control_node::Motor_Config motor_config;
+        ck_ros_base_msgs_node::Motor_Config motor_config;
         if (motor_config_map.find((*i).id) != motor_config_map.end())
         {
             motor_config = motor_config_map[(*i).id];
@@ -69,16 +69,16 @@ void motor_config_callback(const rio_control_node::Motor_Configuration &msg)
 
 void publish_motor_status()
 {
-    rio_control_node::Motor_Status motor_status;
+    ck_ros_base_msgs_node::Motor_Status motor_status;
 
-    for(std::map<uint8_t, rio_control_node::Motor_Info>::iterator i = motor_info_map.begin();
+    for(std::map<uint8_t, ck_ros_base_msgs_node::Motor_Info>::iterator i = motor_info_map.begin();
         i != motor_info_map.end();
         i++)
     {
         motor_status.motors.push_back((*i).second);
     }
 
-    static ros::Publisher status_publisher = node->advertise<rio_control_node::Motor_Status>("/MotorStatus", 100);
+    static ros::Publisher status_publisher = node->advertise<ck_ros_base_msgs_node::Motor_Status>("/MotorStatus", 100);
     status_publisher.publish(motor_status);
 }
 
@@ -122,16 +122,16 @@ void load_config_params()
     }
 }
 
-void motor_control_callback(const rio_control_node::Motor_Control &msg)
+void motor_control_callback(const ck_ros_base_msgs_node::Motor_Control &msg)
 {
-    for( std::vector<rio_control_node::Motor>::const_iterator i = msg.motors.begin();
+    for( std::vector<ck_ros_base_msgs_node::Motor>::const_iterator i = msg.motors.begin();
          i != msg.motors.end();
          i++ )
     {
-        if ((*i).control_mode == rio_control_node::Motor::PERCENT_OUTPUT)
+        if ((*i).control_mode == ck_ros_base_msgs_node::Motor::PERCENT_OUTPUT)
         {
             // Get the existing data, if it exists.
-            rio_control_node::Motor_Info motor_info;
+            ck_ros_base_msgs_node::Motor_Info motor_info;
             if (motor_info_map.find((*i).id) != motor_info_map.end())
             {
                 motor_info = motor_info_map[(*i).id];
@@ -145,7 +145,7 @@ void motor_control_callback(const rio_control_node::Motor_Control &msg)
 
             if (motor_config_map.find((*i).id) != motor_config_map.end())
             {
-                rio_control_node::Motor_Config motor_config = motor_config_map[(*i).id];
+                ck_ros_base_msgs_node::Motor_Config motor_config = motor_config_map[(*i).id];
 
                 if (motor_config.forward_soft_limit_enable)
                 {
@@ -160,27 +160,27 @@ void motor_control_callback(const rio_control_node::Motor_Control &msg)
 
             motor_info_map[motor_info.id] = motor_info;
         }
-        else if ((*i).control_mode == rio_control_node::Motor::MOTION_MAGIC)
+        else if ((*i).control_mode == ck_ros_base_msgs_node::Motor::MOTION_MAGIC)
         {
             float last_position = 0;
             if(motor_info_map.find((*i).id) != motor_info_map.end())
             {
                 last_position = motor_info_map[(*i).id].sensor_position;
             }
-            rio_control_node::Motor_Info motor_info;
+            ck_ros_base_msgs_node::Motor_Info motor_info;
             motor_info.bus_voltage = 12;
             motor_info.id = (*i).id;
             motor_info.sensor_position = ((*i).output_value + (last_position * 5.0)) / 6.0;
             motor_info_map[motor_info.id] = motor_info;
         }
-        else if ((*i).control_mode == rio_control_node::Motor::POSITION)
+        else if ((*i).control_mode == ck_ros_base_msgs_node::Motor::POSITION)
         {
             float last_position = 0;
             if(motor_info_map.find((*i).id) != motor_info_map.end())
             {
                 last_position = motor_info_map[(*i).id].sensor_position;
             }
-            rio_control_node::Motor_Info motor_info;
+            ck_ros_base_msgs_node::Motor_Info motor_info;
             motor_info.bus_voltage = 12;
             motor_info.id = (*i).id;
             motor_info.sensor_position = ((*i).output_value + (last_position * 5.0)) / 6.0;
@@ -192,27 +192,27 @@ void motor_control_callback(const rio_control_node::Motor_Control &msg)
 void publish_robot_status()
 {
     static ros::Time start = ros::Time::now();
-    rio_control_node::Robot_Status robot_status;
-    robot_status.alliance = rio_control_node::Robot_Status::RED;
+    ck_ros_base_msgs_node::Robot_Status robot_status;
+    robot_status.alliance = ck_ros_base_msgs_node::Robot_Status::RED;
     if ((ros::Time::now() - start).toSec() > 15.0)
     {
-        robot_status.robot_state = rio_control_node::Robot_Status::AUTONOMOUS;
+        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::AUTONOMOUS;
     }
     else
     {
-        robot_status.robot_state = rio_control_node::Robot_Status::TELEOP;
+        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::TELEOP;
     }
 
-    static ros::Publisher robot_status_publisher = node->advertise<rio_control_node::Robot_Status>("/RobotStatus", 100);
+    static ros::Publisher robot_status_publisher = node->advertise<ck_ros_base_msgs_node::Robot_Status>("/RobotStatus", 100);
     robot_status_publisher.publish(robot_status);
 }
 
 void linux_joystick_subscriber(const sensor_msgs::Joy &msg)
 {
-    static ros::Publisher joystick_publisher = node->advertise<rio_control_node::Joystick_Status>("/JoystickStatus", 100);
+    static ros::Publisher joystick_publisher = node->advertise<ck_ros_base_msgs_node::Joystick_Status>("/JoystickStatus", 100);
 
-    rio_control_node::Joystick_Status joystick_status;
-    rio_control_node::Joystick joystick;
+    ck_ros_base_msgs_node::Joystick_Status joystick_status;
+    ck_ros_base_msgs_node::Joystick joystick;
 
     for(size_t i = 0; i < msg.axes.size(); i++)
     {
@@ -234,7 +234,7 @@ void linux_joystick_subscriber(const sensor_msgs::Joy &msg)
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "light_sim_rio_control_node");
+	ros::init(argc, argv, "light_sim_ck_ros_base_msgs_node");
 
 	sigintCalled = false;
 	signal(SIGINT, sigint_handler);
