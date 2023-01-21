@@ -186,19 +186,35 @@ void motor_control_callback(const ck_ros_base_msgs_node::Motor_Control &msg)
             motor_info.sensor_position = ((*i).output_value + (last_position * 5.0)) / 6.0;
             motor_info_map[motor_info.id] = motor_info;
         }
+        else if ((*i).control_mode == ck_ros_base_msgs_node::Motor::VELOCITY)
+        {
+            static ros::Time last_time = ros::Time::now();
+            float delta_t = ros::Time::now().toSec() - last_time.toSec();
+            float last_position = 0;
+            if(motor_info_map.find((*i).id) != motor_info_map.end())
+            {
+                last_position = motor_info_map[(*i).id].sensor_position;
+            }
+            ck_ros_base_msgs_node::Motor_Info motor_info;
+            motor_info.bus_voltage = 12;
+            motor_info.id = (*i).id;
+            motor_info.sensor_position = (*i).output_value * (delta_t / 60.0);
+            motor_info.sensor_velocity = (*i).output_value;
+            motor_info_map[motor_info.id] = motor_info;
+        }
     }
 }
 
 void publish_robot_status()
 {
     static ros::Time start = ros::Time::now();
-    ck_ros_base_msgs_node::Robot_Status robot_status;
+    static ck_ros_base_msgs_node::Robot_Status robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::DISABLED;
     robot_status.alliance = ck_ros_base_msgs_node::Robot_Status::RED;
     if ((ros::Time::now() - start).toSec() > 15.0)
     {
         robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::AUTONOMOUS;
     }
-    else
+    else if ((ros::Time::now() - start).toSec() > 30.0)
     {
         robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::TELEOP;
     }
