@@ -198,7 +198,7 @@ void motor_control_callback(const ck_ros_base_msgs_node::Motor_Control &msg)
             ck_ros_base_msgs_node::Motor_Info motor_info;
             motor_info.bus_voltage = 12;
             motor_info.id = (*i).id;
-            motor_info.sensor_position = (*i).output_value * (delta_t / 60.0);
+            motor_info.sensor_position = last_position + ((*i).output_value * (delta_t / 60.0));
             motor_info.sensor_velocity = (*i).output_value;
             motor_info_map[motor_info.id] = motor_info;
         }
@@ -208,7 +208,13 @@ void motor_control_callback(const ck_ros_base_msgs_node::Motor_Control &msg)
 void publish_robot_status()
 {
     static ros::Time start = ros::Time::now();
-    static ck_ros_base_msgs_node::Robot_Status robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::DISABLED;
+    static ck_ros_base_msgs_node::Robot_Status robot_status;
+    static bool first_run = true;
+    if(first_run)
+    {
+        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::DISABLED;
+        first_run = false;
+    }
     robot_status.alliance = ck_ros_base_msgs_node::Robot_Status::RED;
     if ((ros::Time::now() - start).toSec() > 15.0)
     {
