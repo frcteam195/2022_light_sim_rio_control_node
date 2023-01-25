@@ -10,6 +10,10 @@
 #include "ck_ros_base_msgs_node/Robot_Status.h"
 #include "ck_ros_base_msgs_node/Joystick_Status.h"
 
+#include <ck_utilities/CKMath.hpp>
+#include <ck_utilities/geometry/geometry.hpp>
+#include <ck_utilities/geometry/geometry_ros_helpers.hpp>
+
 #include <signal.h>
 #include <thread>
 #include <string>
@@ -65,6 +69,39 @@ void motor_config_callback(const ck_ros_base_msgs_node::Motor_Configuration &msg
 
         motor_config_map[motor_config.id] = motor_config;
     }
+}
+
+void publish_imu_data()
+{
+	static ros::Publisher imu_data_pub = node->advertise<nav_msgs::Odometry>("/RobotIMU", 1);
+
+    nav_msgs::Odometry odometry_data;
+    odometry_data.header.stamp = ros::Time::now();
+    odometry_data.header.frame_id = "odom";
+    odometry_data.child_frame_id = "base_link";
+
+    geometry::Pose empty_pose;
+    odometry_data.pose.pose = geometry::to_msg(empty_pose);
+
+    geometry::Twist empty_twist;
+    odometry_data.twist.twist = geometry::to_msg(empty_twist);
+
+    geometry::Covariance covariance;
+    covariance.yaw_var(0.00001);
+
+    odometry_data.pose.covariance = geometry::to_msg(covariance);
+
+    // for (int i = 0; i < imuData.imu_sensor_size(); i++)
+    // {
+    //     const ck::IMUData::IMUSensorData &imuSensorData = imuData.imu_sensor(i);
+    //     geometry::Pose imu_orientation;
+    //     imu_orientation.orientation.roll(imuSensorData.z());
+    //     imu_orientation.orientation.pitch(imuSensorData.y());
+    //     imu_orientation.orientation.yaw(imuSensorData.x());
+    //     odometry_data.pose.pose = geometry::to_msg(imu_orientation);
+    // }
+
+    imu_data_pub.publish(odometry_data);
 }
 
 void publish_motor_status()
@@ -276,6 +313,7 @@ int main(int argc, char **argv)
         ros::spinOnce();
         publish_robot_status();
         publish_motor_status();
+        publish_imu_data();
         rate.sleep();
     }
 
