@@ -9,6 +9,7 @@
 #include "ck_ros_base_msgs_node/Motor_Status.h"
 #include "ck_ros_base_msgs_node/Robot_Status.h"
 #include "ck_ros_base_msgs_node/Joystick_Status.h"
+#include "ck_ros_msgs_node/Swerve_Drivetrain_Diagnostics.h"
 
 #include <ck_utilities/CKMath.hpp>
 #include <ck_utilities/geometry/geometry.hpp>
@@ -46,6 +47,7 @@ static std::vector<float> motor_ticks_velocity_sample_window;
 
 static std::map<uint8_t, ck_ros_base_msgs_node::Motor_Config> motor_config_map;
 static std::map<uint8_t, ck_ros_base_msgs_node::Motor_Info> motor_info_map;
+static float angular_rate_rad_s = 0;
 
 void motor_config_callback(const ck_ros_base_msgs_node::Motor_Configuration &msg)
 {
@@ -73,7 +75,7 @@ void motor_config_callback(const ck_ros_base_msgs_node::Motor_Configuration &msg
 
 void publish_imu_data()
 {
-	static ros::Publisher imu_data_pub = node->advertise<nav_msgs::Odometry>("/RobotIMU", 1);
+	static ros::Publisher imu_data_pub = node->advertise<nav_msgs::Odometry>("/RobotIMURate", 1);
 
     nav_msgs::Odometry odometry_data;
     odometry_data.header.stamp = ros::Time::now();
@@ -83,13 +85,13 @@ void publish_imu_data()
     geometry::Pose empty_pose;
     odometry_data.pose.pose = geometry::to_msg(empty_pose);
 
-    geometry::Twist empty_twist;
-    odometry_data.twist.twist = geometry::to_msg(empty_twist);
+    geometry::Twist twist;
+    twist.angular.yaw(angular_rate_rad_s);
+    odometry_data.twist.twist = geometry::to_msg(twist);
 
     geometry::Covariance covariance;
     covariance.yaw_var(0.00001);
-
-    odometry_data.pose.covariance = geometry::to_msg(covariance);
+    odometry_data.twist.covariance = geometry::to_msg(covariance);
 
     // for (int i = 0; i < imuData.imu_sensor_size(); i++)
     // {
@@ -291,6 +293,11 @@ void linux_joystick_subscriber(const sensor_msgs::Joy &msg)
     joystick_publisher.publish(joystick_status);
 }
 
+void swerve_diag_subscriber(const ck_ros_msgs_node::Swerve_Drivetrain_Diagnostics &msg)
+{
+    angular_rate_rad_s = ck::math::deg2rad(msg.target_angular_speed_deg_s);
+}
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "light_sim_ck_ros_base_msgs_node");
@@ -307,6 +314,7 @@ int main(int argc, char **argv)
 	ros::Subscriber motorConfig = node->subscribe("/MotorConfiguration", 100, motor_config_callback);
 	ros::Subscriber motorControl = node->subscribe("/MotorControl", 100, motor_control_callback);
     ros::Subscriber linux_joystick = node->subscribe("/joy", 100, linux_joystick_subscriber);
+    ros::Subscriber swerve_diag = node->subscribe("/SwerveDiagnostics", 100, swerve_diag_subscriber);
 
     while( ros::ok() )
     {
