@@ -47,6 +47,7 @@ static std::vector<float> motor_ticks_velocity_sample_window;
 
 static std::map<uint8_t, ck_ros_base_msgs_node::Motor_Config> motor_config_map;
 static std::map<uint8_t, ck_ros_base_msgs_node::Motor_Info> motor_info_map;
+static std::map<uint8_t, ck_ros_base_msgs_node::Motor> motor_control_map;
 static float angular_rate_rad_s = 0;
 
 void motor_config_callback(const ck_ros_base_msgs_node::Motor_Configuration &msg)
@@ -163,84 +164,9 @@ void load_config_params()
 
 void motor_control_callback(const ck_ros_base_msgs_node::Motor_Control &msg)
 {
-    for( std::vector<ck_ros_base_msgs_node::Motor>::const_iterator i = msg.motors.begin();
-         i != msg.motors.end();
-         i++ )
+    for( auto &i : msg.motors)
     {
-        if ((*i).control_mode == ck_ros_base_msgs_node::Motor::PERCENT_OUTPUT)
-        {
-            // Get the existing data, if it exists.
-            ck_ros_base_msgs_node::Motor_Info motor_info;
-            if (motor_info_map.find((*i).id) != motor_info_map.end())
-            {
-                motor_info = motor_info_map[(*i).id];
-            }
-
-            // Fill out the latest status information.
-            motor_info.bus_voltage = 12;
-            motor_info.id = (*i).id;
-            motor_info.sensor_velocity = (*i).output_value * 6380.0 / gear_ratio_to_output_shaft[(*i).id];
-            motor_info.sensor_position += motor_info.sensor_velocity * 0.01;
-
-            if (motor_config_map.find((*i).id) != motor_config_map.end())
-            {
-                ck_ros_base_msgs_node::Motor_Config motor_config = motor_config_map[(*i).id];
-
-                if (motor_config.forward_soft_limit_enable)
-                {
-                    motor_info.sensor_position = fmin(motor_info.sensor_position, motor_config.forward_soft_limit);
-                }
-
-                if (motor_config.reverse_soft_limit_enable)
-                {
-                    motor_info.sensor_position = fmax(motor_info.sensor_position, motor_config.reverse_soft_limit);
-                }
-            }
-
-            motor_info_map[motor_info.id] = motor_info;
-        }
-        else if ((*i).control_mode == ck_ros_base_msgs_node::Motor::MOTION_MAGIC)
-        {
-            float last_position = 0;
-            if(motor_info_map.find((*i).id) != motor_info_map.end())
-            {
-                last_position = motor_info_map[(*i).id].sensor_position;
-            }
-            ck_ros_base_msgs_node::Motor_Info motor_info;
-            motor_info.bus_voltage = 12;
-            motor_info.id = (*i).id;
-            motor_info.sensor_position = ((*i).output_value + (last_position * 5.0)) / 6.0;
-            motor_info_map[motor_info.id] = motor_info;
-        }
-        else if ((*i).control_mode == ck_ros_base_msgs_node::Motor::POSITION)
-        {
-            float last_position = 0;
-            if(motor_info_map.find((*i).id) != motor_info_map.end())
-            {
-                last_position = motor_info_map[(*i).id].sensor_position;
-            }
-            ck_ros_base_msgs_node::Motor_Info motor_info;
-            motor_info.bus_voltage = 12;
-            motor_info.id = (*i).id;
-            motor_info.sensor_position = ((*i).output_value + (last_position * 5.0)) / 6.0;
-            motor_info_map[motor_info.id] = motor_info;
-        }
-        else if ((*i).control_mode == ck_ros_base_msgs_node::Motor::VELOCITY)
-        {
-            static ros::Time last_time = ros::Time::now();
-            float delta_t = ros::Time::now().toSec() - last_time.toSec();
-            float last_position = 0;
-            if(motor_info_map.find((*i).id) != motor_info_map.end())
-            {
-                last_position = motor_info_map[(*i).id].sensor_position;
-            }
-            ck_ros_base_msgs_node::Motor_Info motor_info;
-            motor_info.bus_voltage = 12;
-            motor_info.id = (*i).id;
-            motor_info.sensor_position = last_position + ((*i).output_value * (delta_t / 60.0));
-            motor_info.sensor_velocity = (*i).output_value;
-            motor_info_map[motor_info.id] = motor_info;
-        }
+        motor_control_map[i.id] = i;
     }
 }
 
@@ -298,6 +224,88 @@ void swerve_diag_subscriber(const ck_ros_msgs_node::Swerve_Drivetrain_Diagnostic
     angular_rate_rad_s = ck::math::deg2rad(msg.target_angular_speed_deg_s);
 }
 
+void drive_motor_simulation()
+{
+    for( auto &kv : motor_control_map)
+    {
+        auto i = kv.second;
+        if (i.control_mode == ck_ros_base_msgs_node::Motor::PERCENT_OUTPUT)
+        {
+            // Get the existing data, if it exists.
+            ck_ros_base_msgs_node::Motor_Info motor_info;
+            if (motor_info_map.find(i.id) != motor_info_map.end())
+            {
+                motor_info = motor_info_map[i.id];
+            }
+
+            // Fill out the latest status information.
+            motor_info.bus_voltage = 12;
+            motor_info.id = i.id;
+            motor_info.sensor_velocity = i.output_value * 6380.0 / gear_ratio_to_output_shaft[i.id];
+            motor_info.sensor_position += motor_info.sensor_velocity * 0.01;
+
+            if (motor_config_map.find(i.id) != motor_config_map.end())
+            {
+                ck_ros_base_msgs_node::Motor_Config motor_config = motor_config_map[i.id];
+
+                if (motor_config.forward_soft_limit_enable)
+                {
+                    motor_info.sensor_position = fmin(motor_info.sensor_position, motor_config.forward_soft_limit);
+                }
+
+                if (motor_config.reverse_soft_limit_enable)
+                {
+                    motor_info.sensor_position = fmax(motor_info.sensor_position, motor_config.reverse_soft_limit);
+                }
+            }
+
+            motor_info_map[motor_info.id] = motor_info;
+        }
+        else if (i.control_mode == ck_ros_base_msgs_node::Motor::MOTION_MAGIC)
+        {
+            float last_position = 0;
+            if(motor_info_map.find(i.id) != motor_info_map.end())
+            {
+                last_position = motor_info_map[i.id].sensor_position;
+            }
+            ck_ros_base_msgs_node::Motor_Info motor_info;
+            motor_info.bus_voltage = 12;
+            motor_info.id = i.id;
+            motor_info.sensor_position = (i.output_value + (last_position * 5.0)) / 6.0;
+            motor_info_map[motor_info.id] = motor_info;
+        }
+        else if (i.control_mode == ck_ros_base_msgs_node::Motor::POSITION)
+        {
+            float last_position = 0;
+            if(motor_info_map.find(i.id) != motor_info_map.end())
+            {
+                last_position = motor_info_map[i.id].sensor_position;
+            }
+            ck_ros_base_msgs_node::Motor_Info motor_info;
+            motor_info.bus_voltage = 12;
+            motor_info.id = i.id;
+            motor_info.sensor_position = (i.output_value + (last_position * 5.0)) / 6.0;
+            motor_info_map[motor_info.id] = motor_info;
+        }
+        else if (i.control_mode == ck_ros_base_msgs_node::Motor::VELOCITY)
+        {
+            static ros::Time last_time = ros::Time::now();
+            float delta_t = ros::Time::now().toSec() - last_time.toSec();
+            float last_position = 0;
+            if(motor_info_map.find(i.id) != motor_info_map.end())
+            {
+                last_position = motor_info_map[i.id].sensor_position;
+            }
+            ck_ros_base_msgs_node::Motor_Info motor_info;
+            motor_info.bus_voltage = 12;
+            motor_info.id = i.id;
+            motor_info.sensor_position = last_position + (i.output_value * (delta_t / 60.0));
+            motor_info.sensor_velocity = i.output_value;
+            motor_info_map[motor_info.id] = motor_info;
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "light_sim_ck_ros_base_msgs_node");
@@ -320,6 +328,7 @@ int main(int argc, char **argv)
     {
         ros::spinOnce();
         publish_robot_status();
+        drive_motor_simulation();
         publish_motor_status();
         publish_imu_data();
         rate.sleep();
