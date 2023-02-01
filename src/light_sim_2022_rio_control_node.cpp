@@ -185,9 +185,17 @@ void publish_robot_status()
     {
         robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::AUTONOMOUS;
     }
-    else if ((ros::Time::now() - start).toSec() > 30.0)
+    if ((ros::Time::now() - start).toSec() > 30.0)
+    {
+        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::DISABLED;
+    }
+    if ((ros::Time::now() - start).toSec() > 35.0)
     {
         robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::TELEOP;
+    }
+    if ((ros::Time::now() - start).toSec() > 170.0)
+    {
+        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::DISABLED;
     }
 
     static ros::Publisher robot_status_publisher = node->advertise<ck_ros_base_msgs_node::Robot_Status>("/RobotStatus", 100);
@@ -221,7 +229,7 @@ void linux_joystick_subscriber(const sensor_msgs::Joy &msg)
 
 void swerve_diag_subscriber(const ck_ros_msgs_node::Swerve_Drivetrain_Diagnostics &msg)
 {
-    angular_rate_rad_s = ck::math::deg2rad(msg.target_angular_speed_deg_s);
+    angular_rate_rad_s = ck::math::deg2rad(msg.compensated_target_angular_speed_deg_s);
 }
 
 void drive_motor_simulation()
