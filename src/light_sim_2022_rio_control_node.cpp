@@ -170,36 +170,17 @@ void motor_control_callback(const ck_ros_base_msgs_node::Motor_Control &msg)
     }
 }
 
+static ck_ros_base_msgs_node::Robot_Status override_robot_status;
+
+void sim_robot_state_subscriber(const ck_ros_base_msgs_node::Robot_Status &msg)
+{
+    override_robot_status = msg;
+}
+
 void publish_robot_status()
 {
-    static ros::Time start = ros::Time::now();
-    static ck_ros_base_msgs_node::Robot_Status robot_status;
-    static bool first_run = true;
-    if(first_run)
-    {
-        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::DISABLED;
-        first_run = false;
-    }
-    robot_status.alliance = ck_ros_base_msgs_node::Robot_Status::RED;
-    if ((ros::Time::now() - start).toSec() > 15.0)
-    {
-        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::AUTONOMOUS;
-    }
-    if ((ros::Time::now() - start).toSec() > 30.0)
-    {
-        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::DISABLED;
-    }
-    if ((ros::Time::now() - start).toSec() > 35.0)
-    {
-        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::TELEOP;
-    }
-    if ((ros::Time::now() - start).toSec() > 170.0)
-    {
-        robot_status.robot_state = ck_ros_base_msgs_node::Robot_Status::DISABLED;
-    }
-
     static ros::Publisher robot_status_publisher = node->advertise<ck_ros_base_msgs_node::Robot_Status>("/RobotStatus", 100);
-    robot_status_publisher.publish(robot_status);
+    robot_status_publisher.publish(override_robot_status);
 }
 
 static ck_ros_base_msgs_node::Joystick_Status joystick_status;
@@ -320,6 +301,7 @@ int main(int argc, char **argv)
 	ros::Subscriber motorControl = node->subscribe("/MotorControl", 100, motor_control_callback);
     ros::Subscriber sim_joystick = node->subscribe("/JoystickSimulation", 100, sim_joystick_subscriber);
     ros::Subscriber swerve_diag = node->subscribe("/SwerveDiagnostics", 100, swerve_diag_subscriber);
+    ros::Subscriber sim_state = node->subscribe("/RobotSimulation", 100, sim_robot_state_subscriber);
 
     while( ros::ok() )
     {
