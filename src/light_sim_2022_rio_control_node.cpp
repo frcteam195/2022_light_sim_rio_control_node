@@ -202,29 +202,18 @@ void publish_robot_status()
     robot_status_publisher.publish(robot_status);
 }
 
-void linux_joystick_subscriber(const sensor_msgs::Joy &msg)
+static ck_ros_base_msgs_node::Joystick_Status joystick_status;
+
+void publish_joystick_status()
 {
     static ros::Publisher joystick_publisher = node->advertise<ck_ros_base_msgs_node::Joystick_Status>("/JoystickStatus", 100);
 
-    ck_ros_base_msgs_node::Joystick_Status joystick_status;
-    ck_ros_base_msgs_node::Joystick joystick;
-
-    for(size_t i = 0; i < msg.axes.size(); i++)
-    {
-        // MGT - it seems like the linux axes are inverted from the DS ones,
-        // but this should be double verified
-        joystick.axes.push_back(-msg.axes[i]);
-    }
-
-    for(std::vector<int>::const_iterator i = msg.buttons.begin();
-        i != msg.buttons.end();
-        i++)
-    {
-        joystick.buttons.push_back(*i);
-    }
-
-    joystick_status.joysticks.push_back(joystick);
     joystick_publisher.publish(joystick_status);
+}
+
+void sim_joystick_subscriber(const ck_ros_base_msgs_node::Joystick_Status &msg)
+{
+    joystick_status = msg;
 }
 
 void swerve_diag_subscriber(const ck_ros_msgs_node::Swerve_Drivetrain_Diagnostics &msg)
@@ -329,7 +318,7 @@ int main(int argc, char **argv)
 
 	ros::Subscriber motorConfig = node->subscribe("/MotorConfiguration", 100, motor_config_callback);
 	ros::Subscriber motorControl = node->subscribe("/MotorControl", 100, motor_control_callback);
-    ros::Subscriber linux_joystick = node->subscribe("/joy", 100, linux_joystick_subscriber);
+    ros::Subscriber sim_joystick = node->subscribe("/JoystickSimulation", 100, sim_joystick_subscriber);
     ros::Subscriber swerve_diag = node->subscribe("/SwerveDiagnostics", 100, swerve_diag_subscriber);
 
     while( ros::ok() )
@@ -339,6 +328,7 @@ int main(int argc, char **argv)
         drive_motor_simulation();
         publish_motor_status();
         publish_imu_data();
+        publish_joystick_status();
         rate.sleep();
     }
 
