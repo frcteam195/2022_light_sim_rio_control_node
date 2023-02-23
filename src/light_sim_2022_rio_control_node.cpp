@@ -236,7 +236,11 @@ void drive_motor_simulation()
 
                 if (motor_config.forward_soft_limit_enable)
                 {
-                    motor_info.sensor_position = fmin(motor_info.sensor_position, motor_config.forward_soft_limit);
+                    //Come up with a way to take into account rotations offset to 0 on this so min position is not set to limit on boot
+                    if (motor_config.forward_soft_limit > 0)
+                    {
+                        motor_info.sensor_position = fmin(motor_info.sensor_position, motor_config.forward_soft_limit);
+                    }
                 }
 
                 if (motor_config.reverse_soft_limit_enable)
