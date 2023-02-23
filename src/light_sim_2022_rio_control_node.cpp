@@ -261,8 +261,8 @@ void drive_motor_simulation()
             double gear_ratio = gear_ratio_to_output_shaft[i.id - 1];
 
             const ck_ros_base_msgs_node::Motor_Config& motor_config = motor_config_map[i.id];
-            double accel_rps2 = motor_config.motion_acceleration / 10.0 / cpr / gear_ratio;
-            double cruise_vel_rps = motor_config.motion_cruise_velocity / 10.0 / cpr / gear_ratio;
+            double accel_rps2 = motor_config.motion_acceleration * 10.0 / cpr / gear_ratio;
+            double cruise_vel_rps = motor_config.motion_cruise_velocity * 10.0 / cpr / gear_ratio;
             // double s_curve_strength = motor_config.motion_s_curve_strength;
 
             double accel_step = accel_rps2 * dt.toSec();
