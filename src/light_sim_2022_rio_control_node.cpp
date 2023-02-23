@@ -11,6 +11,7 @@
 #include "ck_ros_base_msgs_node/Joystick_Status.h"
 #include "ck_ros_msgs_node/Swerve_Drivetrain_Diagnostics.h"
 
+#include <ck_utilities/Logger.hpp>
 #include <ck_utilities/CKMath.hpp>
 #include <ck_utilities/geometry/geometry.hpp>
 #include <ck_utilities/geometry/geometry_ros_helpers.hpp>
@@ -69,6 +70,9 @@ void motor_config_callback(const ck_ros_base_msgs_node::Motor_Configuration &msg
 
         motor_config.reverse_soft_limit_enable = (*i).reverse_soft_limit_enable;
         motor_config.reverse_soft_limit = (*i).reverse_soft_limit;
+        motor_config.motion_acceleration = (*i).motion_acceleration;
+        motor_config.motion_cruise_velocity = (*i).motion_cruise_velocity;
+        motor_config.motion_s_curve_strength = (*i).motion_s_curve_strength;
 
         motor_config_map[motor_config.id] = motor_config;
     }
@@ -207,6 +211,7 @@ void drive_motor_simulation()
     static ros::Time prev_time = ros::Time::now();
     ros::Time time_now = ros::Time::now();
     ros::Duration dt = time_now - prev_time;
+    prev_time = time_now;
     for( auto &kv : motor_control_map)
     {
         auto i = kv.second;
@@ -273,11 +278,18 @@ void drive_motor_simulation()
             curr_velocity = ck::math::limit(curr_velocity, -cruise_vel_rps, cruise_vel_rps);
 
             double vel_step = curr_velocity * dt.toSec();
-            if (error < vel_step)
+            if (std::abs(error) < std::abs(vel_step))
             {
                 curr_velocity = 0;
                 actual_position = curr_setpoint;
             }
+            else
+            {
+                actual_position = last_position + vel_step;
+            }
+            // if(i.id == 11){// || i.id == 9){
+            //     ck::log_error << "ID: " << i.id << "\tAC: " << actual_position << "\tSP: " << curr_setpoint << " \tCV: " << curr_velocity << "\tAS: " << accel_step << "\tARPS: " << motor_config.motion_acceleration << std::flush;
+            // }
 
             ck_ros_base_msgs_node::Motor_Info motor_info;
             motor_info.bus_voltage = 12;
