@@ -204,6 +204,9 @@ void swerve_diag_subscriber(const ck_ros_msgs_node::Swerve_Drivetrain_Diagnostic
 
 void drive_motor_simulation()
 {
+    static ros::Time prev_time = ros::Time::now();
+    ros::Time time_now = ros::Time::now();
+    ros::Duration dt = time_now - prev_time;
     for( auto &kv : motor_control_map)
     {
         auto i = kv.second;
@@ -242,14 +245,45 @@ void drive_motor_simulation()
         else if (i.control_mode == ck_ros_base_msgs_node::Motor::MOTION_MAGIC)
         {
             float last_position = 0;
+            float last_velocity = 0;
             if(motor_info_map.find(i.id) != motor_info_map.end())
             {
                 last_position = motor_info_map[i.id].sensor_position;
+                last_velocity = motor_info_map[i.id].sensor_velocity;
             }
+
+            double cpr = motor_ticks_per_revolution[i.id - 1];
+            double gear_ratio = gear_ratio_to_output_shaft[i.id - 1];
+
+            const ck_ros_base_msgs_node::Motor_Config& motor_config = motor_config_map[i.id];
+            double accel_rps2 = motor_config.motion_acceleration / 10.0 / cpr / gear_ratio;
+            double cruise_vel_rps = motor_config.motion_cruise_velocity / 10.0 / cpr / gear_ratio;
+            double s_curve_strength = motor_config.motion_s_curve_strength;
+
+            double accel_step = accel_rps2 * dt.toSec();
+
+            double curr_setpoint = i.output_value;
+            double actual_position = last_position;
+            double error = curr_setpoint - actual_position;
+            double sign = (double(0) < error) - (error < double(0));
+
+            
+            // we're gonna cheat a bit for now because I'm lazy, and not bother with the decel - MGT
+            double curr_velocity = last_velocity + (sign * accel_step);
+            curr_velocity = ck::math::limit(curr_velocity, -cruise_vel_rps, cruise_vel_rps);
+
+            double vel_step = curr_velocity * dt.toSec();
+            if (error < vel_step)
+            {
+                curr_velocity = 0;
+                actual_position = curr_setpoint;
+            }
+
             ck_ros_base_msgs_node::Motor_Info motor_info;
             motor_info.bus_voltage = 12;
             motor_info.id = i.id;
-            motor_info.sensor_position = (i.output_value + (last_position * 5.0)) / 6.0;
+            motor_info.sensor_position = actual_position;
+            motor_info.sensor_velocity = curr_velocity;
             motor_info_map[motor_info.id] = motor_info;
         }
         else if (i.control_mode == ck_ros_base_msgs_node::Motor::POSITION)
