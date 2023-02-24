@@ -279,6 +279,12 @@ void drive_motor_simulation()
 
             // we're gonna cheat a bit for now because I'm lazy, and not bother with the decel - MGT
             double curr_velocity = last_velocity + (sign * accel_step);
+            if (error > std::numeric_limits<float>::epsilon())
+            {
+                double decel_limit_velocity = std::sqrt(2*accel_rps2*error);
+                ck::log_error << "DL: " << decel_limit_velocity << " ER: " << error << " a: " << accel_rps2 << std::flush;
+                curr_velocity = ck::math::limit(curr_velocity, -decel_limit_velocity, decel_limit_velocity);
+            }
             curr_velocity = ck::math::limit(curr_velocity, -cruise_vel_rps, cruise_vel_rps);
 
             double vel_step = curr_velocity * dt.toSec();
