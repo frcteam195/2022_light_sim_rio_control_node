@@ -282,7 +282,6 @@ void drive_motor_simulation()
             if (error > std::numeric_limits<float>::epsilon())
             {
                 double decel_limit_velocity = std::sqrt(2*accel_rps2*error);
-                ck::log_error << "DL: " << decel_limit_velocity << " ER: " << error << " a: " << accel_rps2 << std::flush;
                 curr_velocity = ck::math::limit(curr_velocity, -decel_limit_velocity, decel_limit_velocity);
             }
             curr_velocity = ck::math::limit(curr_velocity, -cruise_vel_rps, cruise_vel_rps);
