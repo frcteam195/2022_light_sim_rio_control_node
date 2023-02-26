@@ -5,6 +5,7 @@
 #include "sensor_msgs/Joy.h"
 
 #include "ck_ros_base_msgs_node/Motor_Control.h"
+#include "ck_ros_base_msgs_node/Solenoid_Control.h"
 #include "ck_ros_base_msgs_node/Motor_Configuration.h"
 #include "ck_ros_base_msgs_node/Motor_Status.h"
 #include "ck_ros_base_msgs_node/Robot_Status.h"
@@ -49,6 +50,7 @@ static std::vector<float> motor_ticks_velocity_sample_window;
 static std::map<uint8_t, ck_ros_base_msgs_node::Motor_Config> motor_config_map;
 static std::map<uint8_t, ck_ros_base_msgs_node::Motor_Info> motor_info_map;
 static std::map<uint8_t, ck_ros_base_msgs_node::Motor> motor_control_map;
+static std::map<uint32_t, ck_ros_base_msgs_node::Solenoid> solenoid_control_map;
 static float angular_rate_rad_s = 0;
 
 void motor_config_callback(const ck_ros_base_msgs_node::Motor_Configuration &msg)
@@ -115,12 +117,22 @@ void publish_motor_status()
 {
     ck_ros_base_msgs_node::Motor_Status motor_status;
 
+    if(solenoid_control_map[65536].output_value == ck_ros_base_msgs_node::Solenoid::OFF)
+    {
+        motor_info_map[13].reverse_limit_closed = 1;
+    }
+    else
+    {
+        motor_info_map[13].reverse_limit_closed = 0;
+    }
+
     for(std::map<uint8_t, ck_ros_base_msgs_node::Motor_Info>::iterator i = motor_info_map.begin();
         i != motor_info_map.end();
         i++)
     {
         motor_status.motors.push_back((*i).second);
     }
+
 
     static ros::Publisher status_publisher = node->advertise<ck_ros_base_msgs_node::Motor_Status>("/MotorStatus", 100);
     status_publisher.publish(motor_status);
@@ -163,6 +175,15 @@ void load_config_params()
         {
             motor_ticks_velocity_sample_window.push_back(0.1);
         }
+    }
+}
+
+
+void solenoid_control_callback(const ck_ros_base_msgs_node::Solenoid_Control &msg)
+{
+    for (auto &i : msg.solenoids)
+    {
+        solenoid_control_map[i.id] = i;
     }
 }
 
@@ -357,6 +378,7 @@ int main(int argc, char **argv)
     ros::Subscriber sim_joystick = node->subscribe("/JoystickSimulation", 100, sim_joystick_subscriber);
     ros::Subscriber swerve_diag = node->subscribe("/SwerveDiagnostics", 100, swerve_diag_subscriber);
     ros::Subscriber sim_state = node->subscribe("/RobotSimulation", 100, sim_robot_state_subscriber);
+    ros::Subscriber solenoid_control_subscriber = node->subscribe("/SolenoidControl", 100, solenoid_control_callback);
 
     while( ros::ok() )
     {
