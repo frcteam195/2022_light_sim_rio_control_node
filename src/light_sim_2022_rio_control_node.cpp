@@ -84,36 +84,55 @@ void motor_config_callback(const ck_ros_base_msgs_node::Motor_Configuration &msg
 void publish_imu_data()
 {
 	static ros::Publisher imu_data_pub = node->advertise<nav_msgs::Odometry>("/RobotIMURate", 1);
+	static ros::Publisher imu_data_fake_test_pub = node->advertise<nav_msgs::Odometry>("/RobotIMU", 1);
 
-    nav_msgs::Odometry odometry_data;
-    odometry_data.header.stamp = ros::Time::now();
-    odometry_data.header.frame_id = "odom";
-    odometry_data.child_frame_id = "base_link";
+    {
+        nav_msgs::Odometry odometry_data;
+        odometry_data.header.stamp = ros::Time::now();
+        odometry_data.header.frame_id = "odom";
+        odometry_data.child_frame_id = "base_link";
 
-    geometry::Pose empty_pose;
-    empty_pose.orientation.pitch(-0.2);
-    odometry_data.pose.pose = geometry::to_msg(empty_pose);
+        geometry::Pose empty_pose;
+        odometry_data.pose.pose = geometry::to_msg(empty_pose);
 
-    geometry::Twist twist;
-    twist.angular.yaw(angular_rate_rad_s);
-    odometry_data.twist.twist = geometry::to_msg(twist);
+        geometry::Twist twist;
+        twist.angular.yaw(angular_rate_rad_s);
+        odometry_data.twist.twist = geometry::to_msg(twist);
 
-    geometry::Covariance covariance;
-    covariance.pitch_var(0.00001);
-    covariance.yaw_var(0.00001);
-    odometry_data.twist.covariance = geometry::to_msg(covariance);
+        geometry::Covariance covariance;
+        covariance.yaw_var(0.00001);
+        odometry_data.twist.covariance = geometry::to_msg(covariance);
 
-    // for (int i = 0; i < imuData.imu_sensor_size(); i++)
+        // for (int i = 0; i < imuData.imu_sensor_size(); i++)
+        // {
+        //     const ck::IMUData::IMUSensorData &imuSensorData = imuData.imu_sensor(i);
+        //     geometry::Pose imu_orientation;
+        //     imu_orientation.orientation.roll(imuSensorData.z());
+        //     imu_orientation.orientation.pitch(imuSensorData.y());
+        //     imu_orientation.orientation.yaw(imuSensorData.x());
+        //     odometry_data.pose.pose = geometry::to_msg(imu_orientation);
+        // }
+
+        imu_data_pub.publish(odometry_data);
+    }
+
+    //Use this to spoof pitch data to test things like auto balance
     // {
-    //     const ck::IMUData::IMUSensorData &imuSensorData = imuData.imu_sensor(i);
-    //     geometry::Pose imu_orientation;
-    //     imu_orientation.orientation.roll(imuSensorData.z());
-    //     imu_orientation.orientation.pitch(imuSensorData.y());
-    //     imu_orientation.orientation.yaw(imuSensorData.x());
-    //     odometry_data.pose.pose = geometry::to_msg(imu_orientation);
-    // }
+    //     nav_msgs::Odometry odometry_data;
+    //     odometry_data.header.stamp = ros::Time::now();
+    //     odometry_data.header.frame_id = "odom";
+    //     odometry_data.child_frame_id = "base_link";
 
-    imu_data_pub.publish(odometry_data);
+    //     geometry::Pose empty_pose;
+    //     empty_pose.orientation.pitch(-0.2);
+    //     odometry_data.pose.pose = geometry::to_msg(empty_pose);
+
+    //     geometry::Covariance covariance;
+    //     covariance.pitch_var(0.00001);
+    //     odometry_data.pose.covariance = geometry::to_msg(covariance);
+        
+    //     imu_data_fake_test_pub.publish(odometry_data);
+    // }
 }
 
 void publish_motor_status()
