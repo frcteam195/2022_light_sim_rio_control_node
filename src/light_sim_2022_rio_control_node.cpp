@@ -2,6 +2,7 @@
 #include "std_msgs/String.h"
 #include "nav_msgs/Odometry.h"
 #include "geometry_msgs/Twist.h"
+#include "geometry_msgs/Quaternion.h"
 #include "sensor_msgs/Joy.h"
 
 #include "ck_ros_base_msgs_node/Motor_Control.h"
@@ -90,6 +91,7 @@ void publish_imu_data()
     odometry_data.child_frame_id = "base_link";
 
     geometry::Pose empty_pose;
+    empty_pose.orientation.pitch(-0.2);
     odometry_data.pose.pose = geometry::to_msg(empty_pose);
 
     geometry::Twist twist;
@@ -97,6 +99,7 @@ void publish_imu_data()
     odometry_data.twist.twist = geometry::to_msg(twist);
 
     geometry::Covariance covariance;
+    covariance.pitch_var(0.00001);
     covariance.yaw_var(0.00001);
     odometry_data.twist.covariance = geometry::to_msg(covariance);
 
