@@ -241,7 +241,7 @@ void drive_motor_simulation()
             // Fill out the latest status information.
             motor_info.bus_voltage = 12;
             motor_info.id = i.id;
-            motor_info.sensor_velocity = i.output_value * 6380.0 / gear_ratio_to_output_shaft[i.id];
+            motor_info.sensor_velocity = i.output_value * 6380.0 / gear_ratio_to_output_shaft[i.id - 1];
             motor_info.sensor_position += motor_info.sensor_velocity * 0.01;
 
             if (motor_config_map.find(i.id) != motor_config_map.end())
